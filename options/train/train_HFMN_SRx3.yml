@@ -1,0 +1,109 @@
+# general settings
+name: train_HFMN_SRx3
+model_type: HFMN_Model
+scale: 3
+num_gpu: auto
+manual_seed: 33
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: DF2K
+    type: PairedImageDataset
+    dataroot_gt: datasets/DF2K/train/HR
+    dataroot_lq: datasets/DF2K/train/LR_bicubic/X3
+    meta_info_file: ~
+    filename_tmpl: '{}'
+    io_backend:
+      type: disk
+
+    gt_size: 192
+    use_hflip: true
+    use_rot: true
+
+    # data loader
+    num_worker_per_gpu: 8
+    batch_size_per_gpu: 16
+    dataset_enlarge_ratio: 20
+    prefetch_mode: ~
+
+  val:
+    name: Urban100
+    type: PairedImageDataset
+    dataroot_gt: datasets/Urban100/HR
+    dataroot_lq: datasets/Urban100/LR_bicubic/X3
+    io_backend:
+      type: disk
+
+# network structures
+network_g:
+  type: HFMN
+  upscale: 3
+  in_chans: 3
+  img_size: 64
+  window_size: 2
+  img_range: 1.
+  depths: [2,2,2,2]
+  embed_dim: 32
+  num_heads: 8
+  mlp_ratio: 2
+
+# path
+path:
+  pretrain_network_g: ~
+  strict_load_g: false
+  resume_state: ~
+
+# training settings
+train:
+  ema_decay: 0
+  optim_g:
+    type: Adam
+    lr: !!float 2e-4
+    weight_decay: 0
+    betas: [0.9, 0.99]
+
+  scheduler:
+    type: MultiStepLR
+    milestones: [250000, 400000, 450000, 475000]
+    gamma: 0.5
+
+  total_iter: 500000
+  warmup_iter: -1  # no warm up
+
+  # losses
+  pixel_opt:
+    type: L1Loss
+    loss_weight: 1.0
+    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 2e3
+  save_img: false
+
+  metrics:
+    psnr:
+      type: calculate_psnr
+      crop_border: 3
+      test_y_channel: true
+      better: higher  # the higher, the better. Default: higher
+    ssim:
+      type: calculate_ssim
+      crop_border: 3
+      test_y_channel: true
+      better: higher  # the higher, the better. Default: higher
+
+# logging settings
+logger:
+  print_freq: 2000
+  save_checkpoint_freq: !!float 2e3
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500
